@@ -140,6 +140,41 @@ func (o *Object) MutateContainers(fn func(map[string]interface{}) error) error {
 	return err
 }
 
+func (o *Object) MutateInitContainers(fn func(map[string]interface{}) error) error {
+	if o.object.Object == nil {
+		o.object.Object = make(map[string]interface{})
+	}
+
+	containers, found, err := nestedFieldNoCopy(o.object.Object, "spec", "template", "spec", "initcontainers")
+	if err != nil {
+		return fmt.Errorf("error reading containers: %v", err)
+	}
+
+	if !found {
+		return fmt.Errorf("containers not found")
+	}
+
+	containerList, ok := containers.([]interface{})
+	if !ok {
+		return fmt.Errorf("containers was not a list")
+	}
+
+	for _, co := range containerList {
+		container, ok := co.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("container was not an object")
+		}
+
+		if err := fn(container); err != nil {
+			return err
+		}
+	}
+
+	// Invalidate cached json
+	o.json = nil
+	return err
+}
+
 func (o *Object) MutatePodSpec(fn func(map[string]interface{}) error) error {
 	if o.object.Object == nil {
 		o.object.Object = make(map[string]interface{})
